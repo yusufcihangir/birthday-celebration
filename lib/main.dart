@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'İlayda''nın Doğum Günü',
+      title: 'Doğum Günü Kutlama',
       theme: ThemeData(
         primarySwatch: Colors.pink,
         useMaterial3: true,
@@ -96,7 +96,7 @@ class _BirthdayScreenState extends State<BirthdayScreen>
                   ),
                 ),
                 Text(
-                  'Ahmet!',
+                  'Sevgili!',
                   style: GoogleFonts.pacifico(
                     fontSize: 60,
                     color: Colors.pink,
@@ -125,7 +125,7 @@ class _BirthdayScreenState extends State<BirthdayScreen>
                   child: Column(
                     children: [
                       Text(
-                        'Seni çok seviyorum ❤️',
+                        'Senin özel günün! 🎂',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.lora(
                           fontSize: 22,
@@ -134,7 +134,7 @@ class _BirthdayScreenState extends State<BirthdayScreen>
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Nice mutlu, sağlıklı ve\nbirlikte geçireceğimiz senelere.',
+                        'Mutluluk, sağlık ve\nher zaman gülümsemeler!',
                         textAlign: TextAlign.center,
                         style: GoogleFonts.lora(
                           fontSize: 16,
