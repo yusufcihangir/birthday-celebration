@@ -1,403 +1,591 @@
-import 'dart:async';
 import 'dart:math';
-import 'dart:ui';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Titreşim için
 import 'package:google_fonts/google_fonts.dart';
 
 void main() {
-  runApp(const UltraBirthdayApp());
+  runApp(const MyApp());
 }
 
-class UltraBirthdayApp extends StatelessWidget {
-  const UltraBirthdayApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Ultra Birthday Experience',
-      theme: ThemeData.from(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pink),
+      title: 'Doğum Günü Kutlama',
+      theme: ThemeData(
+        primarySwatch: Colors.pink,
         useMaterial3: true,
-      ).copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0F0F1E), // Derin gece mavisi
       ),
-      home: const MasterStage(),
+      home: const BirthdayScreen(),
     );
   }
 }
 
-class MasterStage extends StatefulWidget {
-  const MasterStage({super.key});
+class BirthdayScreen extends StatefulWidget {
+  const BirthdayScreen({super.key});
 
   @override
-  State<MasterStage> createState() => _MasterStageState();
+  State<BirthdayScreen> createState() => _BirthdayScreenState();
 }
 
-class _MasterStageState extends State<MasterStage> with TickerProviderStateMixin {
+class _BirthdayScreenState extends State<BirthdayScreen>
+    with TickerProviderStateMixin {
   late ConfettiController _confettiController;
-  late AnimationController _candleController;
+  late AnimationController _heartController;
+  late AnimationController _fadeController;
+  late AnimationController _balloonController;
+  late AnimationController _rotateController;
+  late AnimationController _cakeController;
   
-  // Hikaye Durumları
-  bool _isCandleBlown = false;
-  bool _showMessage = false;
+  late Animation<double> _heartAnimation;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _rotateAnimation;
+  late Animation<double> _scaleAnimation;
+
+  final List<Balloon> _balloons = [];
+  final Random _random = Random();
+  bool _showFireworks = false;
+  int _celebrationCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _confettiController = ConfettiController(duration: const Duration(seconds: 10));
     
-    // Mum titreme efekti için
-    _candleController = AnimationController(
+    // Konfeti kontrolcüsü
+    _confettiController = ConfettiController(duration: const Duration(seconds: 10));
+    _confettiController.play();
+
+    // Kalp atışı animasyonu
+    _heartController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 1200),
     )..repeat(reverse: true);
+
+    _heartAnimation = Tween<double>(begin: 1.0, end: 1.3).animate(
+      CurvedAnimation(parent: _heartController, curve: Curves.easeInOut),
+    );
+
+    // Fade in animasyonu
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -1),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.elasticOut));
+
+    _fadeController.forward();
+
+    // Balon animasyonu
+    _balloonController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
+
+    // Rotate animasyonu
+    _rotateController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3000),
+    )..repeat();
+
+    _rotateAnimation = Tween<double>(begin: -0.1, end: 0.1).animate(
+      CurvedAnimation(parent: _rotateController, curve: Curves.easeInOut),
+    );
+
+    // Pasta animasyonu
+    _cakeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _cakeController, curve: Curves.easeInOut),
+    );
+
+    // Balonları oluştur
+    _createBalloons();
+  }
+
+  void _createBalloons() {
+    for (int i = 0; i < 15; i++) {
+      _balloons.add(Balloon(
+        color: _getRandomColor(),
+        left: _random.nextDouble() * 300,
+        delay: _random.nextDouble() * 5000,
+      ));
+    }
+  }
+
+  Color _getRandomColor() {
+    final colors = [
+      Colors.red,
+      Colors.pink,
+      Colors.purple,
+      Colors.blue,
+      Colors.orange,
+      Colors.yellow,
+      Colors.green,
+      Colors.teal,
+    ];
+    return colors[_random.nextInt(colors.length)];
+  }
+
+  void _celebrate() {
+    setState(() {
+      _celebrationCount++;
+      _showFireworks = true;
+    });
+    
+    _confettiController.stop();
+    _confettiController.play();
+
+    // Fireworks efektini 3 saniye sonra kapat
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showFireworks = false;
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
-    _candleController.dispose();
+    _heartController.dispose();
+    _fadeController.dispose();
+    _balloonController.dispose();
+    _rotateController.dispose();
+    _cakeController.dispose();
     super.dispose();
-  }
-
-  // Mumu söndürme eylemi
-  void _blowCandle() {
-    if (_isCandleBlown) return;
-
-    HapticFeedback.mediumImpact(); // Titreşim
-    setState(() {
-      _isCandleBlown = true;
-    });
-
-    // 1 saniye sonra patlama ve mesaj
-    Future.delayed(const Duration(milliseconds: 800), () {
-      _confettiController.play();
-      setState(() {
-        _showMessage = true;
-      });
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // 1. KATMAN: Uzay/Yıldız Arka Planı (Custom Painter)
-          const Positioned.fill(child: StarFieldBackground()),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.pink[100]!,
+              Colors.purple[100]!,
+              Colors.blue[50]!,
+            ],
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Yüzen balonlar
+            ..._balloons.map((balloon) => AnimatedBalloon(
+              balloon: balloon,
+              controller: _balloonController,
+            )),
 
-          // 2. KATMAN: Ana Sahne
-          Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Dinamik Başlık
-                if (_showMessage)
-                  _buildGoldText("İYİ Kİ DOĞDUN!")
-                else
-                  Text(
-                    "Bir dilek tut...",
-                    style: GoogleFonts.cinzel(
-                      color: Colors.white70,
-                      fontSize: 24,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                
-                const SizedBox(height: 50),
-
-                // Pasta ve Mum Alanı
-                GestureDetector(
-                  onTap: _blowCandle,
-                  child: AnimatedContainer(
-                    duration: const Duration(seconds: 1),
-                    curve: Curves.easeInOut,
-                    // Mum sönünce pasta biraz aşağı iner
-                    transform: Matrix4.translationValues(0, _showMessage ? 50 : 0, 0),
-                    child: Stack(
-                      alignment: Alignment.topCenter,
-                      clipBehavior: Clip.none,
+            // Ana İçerik
+            SafeArea(
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: Center(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                         // Ateş Efekti (Mum sönmediyse göster)
-                        if (!_isCandleBlown)
-                          Positioned(
-                            top: -60,
-                            child: _buildRealisticFlame(),
-                          ),
+                        const SizedBox(height: 40),
                         
-                        // Duman Efekti (Mum söndüyse göster)
-                        if (_isCandleBlown && !_showMessage)
-                           const Positioned(
-                            top: -80,
-                            child: Icon(Icons.cloud, color: Colors.grey, size: 40), 
-                            // Not: Buraya normalde karmaşık bir duman animasyonu gelir
-                           ),
+                        // Dönen parti şapkası
+                        RotationTransition(
+                          turns: _rotateAnimation,
+                          child: const Text(
+                            '🎊',
+                            style: TextStyle(fontSize: 60),
+                          ),
+                        ),
 
-                        // Pasta Gövdesi
-                        _buildPremiumCake(),
+                        const SizedBox(height: 20),
+                        
+                        // Başlık Mesajı - Slide animasyonu ile
+                        SlideTransition(
+                          position: _slideAnimation,
+                          child: Column(
+                            children: [
+                              Text(
+                                'İyi ki Doğdun',
+                                style: GoogleFonts.pacifico(
+                                  fontSize: 48,
+                                  foreground: Paint()
+                                    ..shader = LinearGradient(
+                                      colors: [
+                                        Colors.pink[800]!,
+                                        Colors.purple[600]!,
+                                      ],
+                                    ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
+                                ),
+                              ),
+                              Text(
+                                'Sevgili!',
+                                style: GoogleFonts.pacifico(
+                                  fontSize: 72,
+                                  fontWeight: FontWeight.bold,
+                                  foreground: Paint()
+                                    ..shader = LinearGradient(
+                                      colors: [
+                                        Colors.pink,
+                                        Colors.red[400]!,
+                                      ],
+                                    ).createShader(const Rect.fromLTWH(0, 0, 300, 100)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 30),
+
+                        // Kalp ve Pasta kombinasyonu
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Kalp Animasyonu
+                            ScaleTransition(
+                              scale: _heartAnimation,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.red.withValues(alpha: 0.3),
+                                      blurRadius: 30,
+                                      spreadRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.favorite,
+                                  color: Colors.red,
+                                  size: 180,
+                                ),
+                              ),
+                            ),
+                            // Pasta emoji
+                            ScaleTransition(
+                              scale: _scaleAnimation,
+                              child: const Text(
+                                '🎂',
+                                style: TextStyle(fontSize: 80),
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 30),
+                        
+                        // Mesaj Kartı
+                        Container(
+                          padding: const EdgeInsets.all(25),
+                          margin: const EdgeInsets.symmetric(horizontal: 30),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(25),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.pink.withValues(alpha: 0.3),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                '✨ Senin Özel Günün! ✨',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.lora(
+                                  fontSize: 26,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.pink[800],
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+                              Text(
+                                'Hayatın her anı güzelliklerle dolsun,\ngülüşün hiç eksilmesin!\n\nSeni seviyoruz! ❤️',
+                                textAlign: TextAlign.center,
+                                style: GoogleFonts.lora(
+                                  fontSize: 18,
+                                  color: Colors.grey[700],
+                                  height: 1.5,
+                                ),
+                              ),
+                              const SizedBox(height: 15),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: Colors.pink[50],
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Text(
+                                  '🎈 ${_celebrationCount > 0 ? "$_celebrationCount kez kutlandı!" : "İlk kutlamaya hazır!"} 🎈',
+                                  style: GoogleFonts.lora(
+                                    fontSize: 16,
+                                    color: Colors.pink[700],
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 40),
+                        
+                        // Butonlar
+                        Wrap(
+                          spacing: 15,
+                          runSpacing: 15,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _celebrate,
+                              icon: const Icon(Icons.celebration, size: 28),
+                              label: const Text('Kutla! 🎉'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.pink,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 20),
+                                textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 8,
+                              ),
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _balloons.clear();
+                                  _createBalloons();
+                                });
+                              },
+                              icon: const Icon(Icons.refresh, size: 28),
+                              label: const Text('Yenile 🎈'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 35, vertical: 20),
+                                textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30),
+                                ),
+                                elevation: 8,
+                              ),
+                            ),
+                          ],
+                        ),
+                        
+                        const SizedBox(height: 40),
                       ],
                     ),
                   ),
                 ),
+              ),
+            ),
 
-                const SizedBox(height: 60),
+            // Konfeti Efekti - Üstten
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confettiController,
+                blastDirection: pi / 2,
+                maxBlastForce: 8,
+                minBlastForce: 3,
+                emissionFrequency: 0.03,
+                numberOfParticles: 60,
+                gravity: 0.15,
+                colors: const [
+                  Colors.green,
+                  Colors.blue,
+                  Colors.pink,
+                  Colors.orange,
+                  Colors.purple,
+                  Colors.red,
+                  Colors.yellow,
+                  Colors.teal,
+                ],
+              ),
+            ),
 
-                // Fotoğraf / Mesaj Kartı (Patlamadan sonra gelir)
-                AnimatedOpacity(
-                  duration: const Duration(seconds: 2),
-                  opacity: _showMessage ? 1.0 : 0.0,
-                  child: _showMessage ? const PremiumInfoCard() : const SizedBox.shrink(),
+            // Konfeti Efekti - Soldan
+            if (_showFireworks)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirection: 0,
+                  maxBlastForce: 10,
+                  minBlastForce: 5,
+                  emissionFrequency: 0.02,
+                  numberOfParticles: 40,
+                  gravity: 0.1,
+                  colors: const [
+                    Colors.green,
+                    Colors.blue,
+                    Colors.pink,
+                    Colors.orange,
+                    Colors.purple,
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // 3. KATMAN: Konfeti (En üstte)
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: pi / 2,
-              maxBlastForce: 20,
-              minBlastForce: 8,
-              emissionFrequency: 0.05,
-              numberOfParticles: 50,
-              gravity: 0.01,
-              colors: const [Colors.amber, Colors.orange, Colors.pink, Colors.purple, Colors.cyan],
-              createParticlePath: drawStar, // Özel şekil (Yıldız)
-            ),
-          ),
-        ],
+            // Konfeti Efekti - Sağdan
+            if (_showFireworks)
+              Align(
+                alignment: Alignment.centerRight,
+                child: ConfettiWidget(
+                  confettiController: _confettiController,
+                  blastDirection: pi,
+                  maxBlastForce: 10,
+                  minBlastForce: 5,
+                  emissionFrequency: 0.02,
+                  numberOfParticles: 40,
+                  gravity: 0.1,
+                  colors: const [
+                    Colors.green,
+                    Colors.blue,
+                    Colors.pink,
+                    Colors.orange,
+                    Colors.purple,
+                  ],
+                ),
+              ),
+
+            // Yıldız efekti
+            ...List.generate(20, (index) => StarParticle(index: index)),
+          ],
+        ),
       ),
     );
   }
+}
 
-  // --- WIDGET PARÇALARI ---
+// Balon sınıfı
+class Balloon {
+  final Color color;
+  final double left;
+  final double delay;
 
-  // Gerçekçi Titreyen Alev
-  Widget _buildRealisticFlame() {
+  Balloon({
+    required this.color,
+    required this.left,
+    required this.delay,
+  });
+}
+
+// Animasyonlu Balon Widget
+class AnimatedBalloon extends StatelessWidget {
+  final Balloon balloon;
+  final AnimationController controller;
+
+  const AnimatedBalloon({
+    super.key,
+    required this.balloon,
+    required this.controller,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    
     return AnimatedBuilder(
-      animation: _candleController,
+      animation: controller,
       builder: (context, child) {
-        // Rastgele titreme büyüklüğü
-        final wobble = sin(DateTime.now().millisecondsSinceEpoch / 100) * 0.1;
-        final scale = 1.0 + (_candleController.value * 0.1);
+        final progress = (controller.value + balloon.delay / 5000) % 1.0;
+        final yPosition = screenHeight * (1 - progress) - 100;
         
-        return Transform.scale(
-          scale: scale,
+        return Positioned(
+          left: balloon.left,
+          bottom: yPosition,
           child: Transform.rotate(
-            angle: wobble,
-            child: Container(
-              width: 30,
-              height: 50,
-              decoration: BoxDecoration(
-                boxShadow: [
-                  BoxShadow(color: Colors.orange.withValues(alpha: 0.6), blurRadius: 20, spreadRadius: 5),
-                  BoxShadow(color: Colors.yellow.withValues(alpha: 0.4), blurRadius: 40, spreadRadius: 10),
-                ],
-                gradient: const LinearGradient(
-                  colors: [Colors.yellowAccent, Colors.orange, Colors.red],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+            angle: sin(progress * 4 * pi) * 0.1,
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: balloon.color,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(40),
+                      topRight: Radius.circular(40),
+                      bottomLeft: Radius.circular(40),
+                      bottomRight: Radius.circular(40),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        // ignore: deprecated_member_use
+                        color: balloon.color.withOpacity(0.5),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
                 ),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  topRight: Radius.circular(15),
-                  bottomLeft: Radius.circular(10),
-                  bottomRight: Radius.circular(10),
+                Container(
+                  width: 2,
+                  height: 30,
+                  color: Colors.grey[600],
                 ),
-              ),
+              ],
             ),
           ),
         );
       },
     );
   }
-
-  // 3D Görünümlü Pasta
-  Widget _buildPremiumCake() {
-    return Container(
-      width: 180,
-      height: 140,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Colors.pink[200]!, Colors.pink[400]!],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
-            offset: const Offset(10, 10),
-            blurRadius: 20,
-          ),
-          // Işık yansıması (Highlight)
-          BoxShadow(
-            color: Colors.white.withValues(alpha: 0.2),
-            offset: const Offset(-5, -5),
-            blurRadius: 5,
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Krema katmanları
-          Positioned(
-            top: 40,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 20,
-              color: Colors.white.withValues(alpha: 0.8),
-            ),
-          ),
-          // Süsler
-          const Center(child: Text("🎂", style: TextStyle(fontSize: 40))),
-          // Mum Çubuğu
-          Align(
-            alignment: Alignment.topCenter,
-            child: Container(
-              width: 8,
-              height: 40,
-              margin: const EdgeInsets.only(top: 0),
-              transform: Matrix4.translationValues(0, -20, 0),
-              color: Colors.blueGrey[100],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  // Altın Metin Efekti (ShaderMask)
-  Widget _buildGoldText(String text) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => const LinearGradient(
-        colors: [Color(0xFFFDEB71), Color(0xFFF8D800), Color(0xFFFDEB71)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ).createShader(bounds),
-      child: Text(
-        text,
-        textAlign: TextAlign.center,
-        style: GoogleFonts.montserrat(
-          fontSize: 42,
-          fontWeight: FontWeight.w900,
-          shadows: [
-            const Shadow(blurRadius: 10, color: Colors.orange, offset: Offset(0, 0)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Konfeti için Yıldız Şekli
-  Path drawStar(Size size) {
-    double degToRad(double deg) => deg * (pi / 180.0);
-    const numberOfPoints = 5;
-    final halfWidth = size.width / 2;
-    final externalRadius = halfWidth;
-    final internalRadius = halfWidth / 2.5;
-    final degreesPerStep = degToRad(360 / numberOfPoints);
-    final halfDegreesPerStep = degreesPerStep / 2;
-    final path = Path();
-    final fullAngle = degToRad(360);
-    path.moveTo(size.width, halfWidth);
-
-    for (double step = 0; step < fullAngle; step += degreesPerStep) {
-      path.lineTo(halfWidth + externalRadius * cos(step), halfWidth + externalRadius * sin(step));
-      path.lineTo(halfWidth + internalRadius * cos(step + halfDegreesPerStep), halfWidth + internalRadius * sin(step + halfDegreesPerStep));
-    }
-    path.close();
-    return path;
-  }
 }
 
-// 4. KATMAN: Kişiye Özel Kart (Glassmorphism)
-class PremiumInfoCard extends StatelessWidget {
-  const PremiumInfoCard({super.key});
+// Yıldız parçacığı
+class StarParticle extends StatefulWidget {
+  final int index;
+
+  const StarParticle({super.key, required this.index});
 
   @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-        child: Container(
-          width: 320,
-          padding: const EdgeInsets.all(25),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-          ),
-          child: Column(
-            children: [
-              // Fotoğraf Çerçevesi
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(color: Colors.pink.withValues(alpha: 0.4), blurRadius: 20, spreadRadius: 5),
-                  ],
-                ),
-                child: const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white24,
-                  child: Icon(Icons.person, size: 50, color: Colors.white),
-                  // backgroundImage: AssetImage('assets/photo.jpg'), // Kendi resminizi koyun
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                "Senin Işığın Hiç Sönmesin",
-                style: GoogleFonts.raleway(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                "Yeni yaşın sana evrendeki tüm güzellikleri getirsin. Seni çok seviyoruz!",
-                textAlign: TextAlign.center,
-                style: GoogleFonts.lora(
-                  color: Colors.white70,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  State<StarParticle> createState() => _StarParticleState();
 }
 
-// ARKA PLAN: Hareketli Yıldızlar (Canvas Painting)
-class StarFieldBackground extends StatefulWidget {
-  const StarFieldBackground({super.key});
-
-  @override
-  State<StarFieldBackground> createState() => _StarFieldBackgroundState();
-}
-
-class _StarFieldBackgroundState extends State<StarFieldBackground> with SingleTickerProviderStateMixin {
+class _StarParticleState extends State<StarParticle>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  final List<_Star> _stars = [];
+  late Animation<double> _animation;
+  final Random _random = Random();
+  late double left;
+  late double top;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 10))..repeat();
-    for (int i = 0; i < 100; i++) {
-      _stars.add(_Star());
-    }
+    left = _random.nextDouble() * 400;
+    top = _random.nextDouble() * 800;
+
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 2000 + _random.nextInt(2000)),
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -408,52 +596,16 @@ class _StarFieldBackgroundState extends State<StarFieldBackground> with SingleTi
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          painter: _StarPainter(_stars, _controller.value),
-          size: Size.infinite,
-        );
-      },
+    return Positioned(
+      left: left,
+      top: top,
+      child: FadeTransition(
+        opacity: _animation,
+        child: const Text(
+          '✨',
+          style: TextStyle(fontSize: 20),
+        ),
+      ),
     );
   }
-}
-
-class _Star {
-  double x = Random().nextDouble();
-  double y = Random().nextDouble();
-  double size = Random().nextDouble() * 2 + 1;
-  double speed = Random().nextDouble() * 0.002 + 0.001;
-}
-
-class _StarPainter extends CustomPainter {
-  final List<_Star> stars;
-  final double progress;
-
-  _StarPainter(this.stars, this.progress);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = Colors.white.withValues(alpha: 0.8);
-
-    for (var star in stars) {
-      // Yıldızları yukarı doğru hareket ettir
-      double currentY = (star.y - (progress * 10 * star.speed)) % 1.0;
-      if (currentY < 0) currentY += 1.0;
-
-      // Parıltı efekti (Opaklık değişimi)
-      final opacity = (sin(progress * 20 + star.x * 10) + 1) / 2 * 0.5 + 0.3;
-      paint.color = Colors.white.withValues(alpha: opacity);
-
-      canvas.drawCircle(
-        Offset(star.x * size.width, currentY * size.height),
-        star.size,
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
